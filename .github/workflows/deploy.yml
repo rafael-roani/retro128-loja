@@ -48,6 +48,23 @@ jobs:
           echo "Publicando $REF_PUBLICADA (commit $COMMIT) — evento: $EVENTO"
           cat build-info.json
 
+      - name: Validar a release (capas e promoções)
+        run: |
+          python3 - <<'PY'
+          import json, os, sys
+          cfg = json.load(open("config/app-config.json", encoding="utf-8"))
+          jogos = json.load(open(cfg["catalogoUrl"], encoding="utf-8"))["jogos"]
+          ids = {j["id"] for j in jogos}
+          erros = [f"capa não encontrada: {cfg['pastaCapas']}{j['capa']}"
+                   for j in jogos if not os.path.isfile(cfg["pastaCapas"] + j["capa"])]
+          erros += [f"promoção para jogo inexistente: {i}"
+                    for i in cfg["blackFriday"]["promocoes"] if i not in ids]
+          for e in erros:
+              print(f"::error::{e}")
+          print(f"{len(jogos)} jogos verificados, {len(erros)} erro(s)")
+          sys.exit(1 if erros else 0)
+          PY
+
       - name: Configurar Pages
         uses: actions/configure-pages@v5
 
